@@ -1,0 +1,18 @@
+# 放到你自己仓库的 .github/workflows/geo-check.yml
+# 每次修改 README 或网站文件时自动体检，结果显示在 Actions 的运行摘要里
+name: GEO Check
+
+on:
+  push:
+    paths: ["README.md", "docs/**", "index.html"]
+  workflow_dispatch:
+
+jobs:
+  geo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: skylarzzzz/geo-anything@v1
+        with:
+          target: "."            # 体检当前仓库；也可以填网址，如 https://你的网站
+          min-score: "60"        # 低于 60 分标记失败；填 0 只出报告

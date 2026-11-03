@@ -1,0 +1,51 @@
+# 放到你自己仓库的 .github/workflows/geo-monitor.yml
+# 每周一自动用 API 跑一遍问题池，把监测记录提交回仓库
+# 先在仓库 Settings → Secrets and variables → Actions 添加你要用的平台 Key：
+#   DEEPSEEK_API_KEY / DASHSCOPE_API_KEY / PERPLEXITY_API_KEY / MOONSHOT_API_KEY / OPENAI_API_KEY
+name: GEO Monitor
+
+on:
+  schedule:
+    - cron: "37 0 * * 1"     # 每周一 08:37（北京时间）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: skylarzzzz/geo-anything
+          ref: v1
+          path: .geo-anything
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run monitor
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          prev=$(ls geo-monitor/*.json 2>/dev/null | sort | tail -1 || true)
+          python3 .geo-anything/scripts/geo_monitor.py \
+            --questions geo/questions.txt \
+            --names "你的项目名,别称" \
+            --links "github.com/你/你的项目" \
+            --keywords "定义里的,关键词" \
+            --platforms deepseek,qwen,perplexity,kimi,openai \
+            --out-dir geo-monitor ${prev:+--compare "$prev"}
+          cat geo-monitor/$(date +%F).md >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit results
+        run: |
+          git config user.name "geo-monitor-bot"
+          git config user.email "geo-monitor-bot@users.noreply.github.com"
+          git add geo-monitor
+          git commit -m "GEO monitor $(date +%F)" || echo "no changes"
+          git push

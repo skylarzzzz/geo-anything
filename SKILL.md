@@ -1,6 +1,6 @@
 ---
 name: geo-anything
-description: 通用 GEO（生成式引擎优化）skill：体检、改写、生成文件、监测与复盘，让任何网站、账号内容、商品、GitHub 仓库、个人或企业品牌被豆包、DeepSeek、元宝、Kimi、ChatGPT、Perplexity 等 AI 读懂、引用和推荐。
+description: 通用 GEO（生成式引擎优化）skill：体检、改写、模拟引用、生成文件、API 监测、报告与客户管理，让任何网站、账号内容、商品、GitHub 仓库、个人或企业品牌被豆包、DeepSeek、元宝、Kimi、ChatGPT、Perplexity 等 AI 读懂、引用和推荐。
 ---
 
 # GEO Anything · 让 AI 看见你的任何东西
@@ -64,9 +64,45 @@ GEO（Generative Engine Optimization，生成式引擎优化）要解决的只�
 | `/geo 布点` | 规划在哪些「AI 常引用的来源」被提及 | 平台清单 + 每处要发什么 |
 | `/geo 监测` | 指导在各 AI 平台实测并记录 | 记录表 + 可见度得分 |
 | `/geo 复盘` | 对比上一次监测 | 变化报告 + 下阶段 3 个动作 |
-| `/geo 报告` | 汇总成可交付报告（给老板/客户） | 结构化报告 |
+| `/geo 报告` | 汇总成可交付报告（给老板/客户） | HTML/PDF 图表报告，可白标 |
+| `/geo 性能 <网址>` | Core Web Vitals 与加载速度 | LCP / CLS / INP 与修复建议 |
+| `/geo 模拟` | 本地预演：原文与改写稿谁更容易被 AI 引用 | 引用率、字数份额、位置加权份额 |
+| `/geo 搜索数据` | 分析 Search Console / 百度搜索资源平台导出的查询表 | GEO 内容机会 + 问题池 |
+| `/geo 客户` | 线索管线、自动提案、月度对比（给接单的人） | 客户表、提案、月报 |
 
-推荐顺序：档案 → 问题池 → 体检 → 改写 / 文件 / 实体 / 布点 → 监测 → 复盘（每 2–4 周一次）。
+推荐顺序：档案 → 问题池 → 体检 → 改写 →（模拟）→ 文件 / 实体 / 布点 → 监测 → 复盘（每 2–4 周一次）。
+
+---
+
+## 2.5 工具箱：脚本与子 agent
+
+skill 自带一组**零依赖 Python 脚本**（只用标准库，Python 3.9+），在 `scripts/` 目录。
+**能运行命令时优先用脚本**（分数稳定、可复现），不能运行时（例如手机对话）按本文档的人工流程执行，并告诉用户可以用脚本复核。
+
+| 脚本 | 对应命令 | 作用 | 需要 |
+|---|---|---|---|
+| `geo_check.py <网址/仓库/本地文件或目录>` | 体检、速查、性能 | A/C/D/E 四维打分、快赢清单；`--psi` 获取 Core Web Vitals；`--json` 输出结构化结果；`--min-score` 用于 CI | 无 |
+| `geo_monitor.py` | 监测、复盘 | 用 API 批量跑问题池，按平台记「提及/准确/链接」，`--compare` 对比上次 | 平台 API Key |
+| `geo_simulate.py` | 模拟、改写 | 按 GEO 论文方法模拟生成式引擎，比较版本的引用份额；`--rewrite` 自动按规则改写 | 一个平台的 API Key |
+| `geo_report.py` | 报告 | 体检/监测 JSON → 自包含 HTML 图表报告，`--pdf` 输出 PDF；`--brand --color --logo --white-label` 白标 | PDF 需 reportlab（可选） |
+| `geo_gsc.py <导出的CSV>` | 搜索数据 | 找问题型查询、高曝光低点击、排名 4–20 潜力词，生成问题池 | 无 |
+| `geo_clients.py` | 客户 | add / list / stage / audit / monitor / proposal / compare | 无 |
+
+GitHub Action：仓库根目录的 `action.yml`（`uses: skylarzzzz/geo-anything@v1`），示例工作流见 `examples/workflows/`：push 时自动体检、每周定时监测并把记录提交回仓库。
+
+**并行子 agent**（`agents/` 目录，可用子 agent 的环境中使用，例如 Claude Code）：
+完整体检时，同时启动 5 个子 agent，各自负责一部分，最后由你汇总：
+
+| 子 agent | 负责 |
+|---|---|
+| geo-visibility | B 外部提及度 |
+| geo-platform | F 平台适配 |
+| geo-technical | D 技术可读性与性能 |
+| geo-content | A 可引用性、C 实体清晰度与 E-E-A-T |
+| geo-schema | E 结构化数据 |
+
+汇总规则：脚本测得的分数优先于子 agent 的人工估计；子 agent 结论冲突时保留证据更充分的一方并注明。
+不能使用子 agent 的环境下，按同样的分工顺序自己逐项完成。
 
 ---
 
@@ -114,7 +150,7 @@ GEO（Generative Engine Optimization，生成式引擎优化）要解决的只�
 
 ## 5. 文件生成（/geo 文件）
 
-模板在 templates/ 目录，按场景挑选并填好真实信息再输出：
+模板在 templates/ 目录，按场景挑选并填好真实信息再输出（能运行命令时，可先用 `geo_check.py` 找出缺哪些文件）：
 - `templates/llms.txt` 站点说明文件
 - `templates/schema/*.json` 各类 JSON-LD
 - `templates/robots-ai.txt` AI 爬虫放行示例（先向用户解释：搜索类爬虫与训练类爬虫可以分开设置，由用户决定）
@@ -129,11 +165,19 @@ GEO（Generative Engine Optimization，生成式引擎优化）要解决的只�
 
 ## 6. 问题池与监测（/geo 问题池、/geo 监测、/geo 复盘）
 
-详见 references/monitoring.md。要点：
+详见 references/monitoring.md。有 API Key 时用 `geo_monitor.py` 自动跑，并注意区分「联网」与「模型记忆」两种模式；App 内的真实表现仍需手动抽查。用户有搜索平台数据时，先用 `geo_gsc.py` 从真实查询生成问题池。要点：
 - 问题分 4 类意图：认知（有没有…的工具）、对比（A 和 B 哪个好）、操作（怎么用 AI 做…）、品牌（直接问名字）。
 - 每个平台单独记录，不要只看平均值：同一动作可能让一个平台上升、另一个平台下降。
 - 每条回答记 3 分：提及(1) + 描述准确(1) + 附来源链接(1)。
 - 每 2–4 周复测同一批问题，回答有随机性，同一问题可问 2 次取保守结果。
+
+---
+
+## 6.5 模拟、报告与客户（/geo 模拟、/geo 报告、/geo 客户）
+
+- **模拟**：改写稿上线前，用 `geo_simulate.py` 把原文、改写稿与 2–4 篇竞品一起交给 LLM 模拟作答，比较引用率和份额。它只说明版本之间的相对好坏，上线后仍以真实监测为准。
+- **报告**：`geo_check.py --json` 和 `geo_monitor.py` 的结果交给 `geo_report.py`，得到可发给老板或客户的报告；代客户交付时用白标参数。
+- **客户**：接 GEO 服务的使用者用 `geo_clients.py` 管理线索 → 体检 → 提案 → 签约 → 月报。提案中的报价由使用者自己填写，不要替用户编价格。
 
 ---
 

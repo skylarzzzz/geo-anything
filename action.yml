@@ -1,0 +1,57 @@
+name: "GEO Anything Check"
+description: "体检网站、GitHub 仓库或本地 README 的 AI 搜索可见度（GEO），低于阈值时让工作流失败"
+author: "skylarzzzz"
+branding:
+  icon: "search"
+  color: "orange"
+
+inputs:
+  target:
+    description: "要体检的对象：网址、GitHub 仓库地址，或仓库内的路径（默认 . 表示当前仓库）"
+    required: false
+    default: "."
+  min-score:
+    description: "最低分数，低于这个分数工作流失败；0 表示只出报告不拦截"
+    required: false
+    default: "0"
+  report-path:
+    description: "报告输出路径"
+    required: false
+    default: "geo-report.md"
+
+outputs:
+  score:
+    description: "脚本可测部分得分（0–100）"
+    value: ${{ steps.geo.outputs.score }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - id: geo
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        GEO_TARGET: ${{ inputs.target }}
+        GEO_MIN: ${{ inputs.min-score }}
+        GEO_REPORT: ${{ inputs.report-path }}
+      run: |
+        set +e
+        python3 "${{ github.action_path }}/scripts/geo_check.py" "$GEO_TARGET" --out "$GEO_REPORT"
+        python3 "${{ github.action_path }}/scripts/geo_check.py" "$GEO_TARGET" --json > geo-report.json
+        status=$?
+        set -e
+        if [ "$status" -ne 0 ]; then
+          echo "体检没有完成（目标无法读取）" >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+        fi
+        score=$(python3 -c "import json;print(json.load(open('geo-report.json'))['score'])")
+        echo "score=$score" >> "$GITHUB_OUTPUT"
+        cat "$GEO_REPORT" >> "$GITHUB_STEP_SUMMARY"
+        if [ "$GEO_MIN" -gt 0 ] && [ "$score" -lt "$GEO_MIN" ]; then
+          echo "::error::GEO 得分 $score 低于阈值 $GEO_MIN"
+          exit 1
+        fi
