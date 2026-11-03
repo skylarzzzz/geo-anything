@@ -35,7 +35,7 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from geo_monitor import DISPLAY, PROVIDERS, load_questions, provider_conf  # noqa: E402
+from geo_monitor import DISPLAY, PROVIDERS, complete, load_questions, provider_conf  # noqa: E402
 
 CJK = re.compile(r"[一-鿿]")
 WORD = re.compile(r"[A-Za-z0-9]+")
@@ -66,30 +66,19 @@ REWRITE_PROMPT = """你是 GEO（生成式引擎优化）编辑。请改写下�
 
 
 def chat(conf: dict, prompt: str, temperature: float = 0.2, timeout: int = 120) -> str:
-    body = {"model": conf["model"], "temperature": temperature,
-            "messages": [{"role": "user", "content": prompt}], **conf["extra"]}
-    body.pop("enable_search", None)            # 模拟时不联网，只看给定来源
-    req = urllib.request.Request(conf["base"] + "/chat/completions", data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json",
-                                          "Authorization": f"Bearer {conf['key']}"})
+    """模拟时一律不联网，只看给定的来源。"""
     last = ""
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                data = json.loads(r.read().decode("utf-8", errors="replace"))
-            return (data.get("choices") or [{}])[0].get("message", {}).get("content") or ""
+            return complete(conf, prompt, "", temperature, use_search=False, timeout=timeout)[0]
         except urllib.error.HTTPError as e:
             last = f"HTTP {e.code}: {e.read().decode('utf-8', errors='replace')[:200]}"
-            if e.code not in (429, 500, 502, 503, 504):
+            if e.code not in (429, 500, 502, 503, 504, 529):
                 break
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError, KeyError) as e:
             last = str(e)
         time.sleep(2 * (attempt + 1))
     raise RuntimeError(last)
-
-
-def wlen(s: str) -> int:
-    return len(CJK.findall(s)) + len(WORD.findall(s))
 
 
 SENT_RE = re.compile(r"[^。！？!?；;\n]+(?:[。！？!?；;]+)?(?:\s*\[\d+(?:\s*[,，、]\s*\d+)*\])*")

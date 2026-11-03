@@ -20,11 +20,17 @@
 
 问题文件：每行一个问题；# 开头为注释；可写成「意图|问题」，意图为 认知/对比/操作/品牌。
 
-API Key（只需配置要用的平台）：
-  DEEPSEEK_API_KEY  MOONSHOT_API_KEY  DASHSCOPE_API_KEY  ARK_API_KEY（另需 ARK_MODEL）
-  PERPLEXITY_API_KEY  OPENAI_API_KEY
-模型名会随时间变化，可用 GEO_MODEL_<平台大写> 覆盖，例如 GEO_MODEL_DEEPSEEK=deepseek-chat。
-接口地址可用 GEO_BASE_URL_<平台大写> 覆盖（例如走代理或测试）。
+平台（--platforms，逗号分隔；--platforms all 表示所有已配置 Key 的平台；--list 查看完整列表）：
+  国内：deepseek qwen doubao kimi hunyuan zhipu wenxin minimax stepfun baichuan spark
+  海外：openai gemini claude grok perplexity mistral
+每个平台需要对应的 API Key 环境变量（运行 --list 查看）。
+
+模型名会随时间变化，脚本里的默认值可能已过时，可用 GEO_MODEL_<平台大写> 覆盖，例如 GEO_MODEL_GEMINI=gemini-2.5-pro。
+接口地址可用 GEO_BASE_URL_<平台大写> 覆盖（走代理或测试）。
+联网开关：支持联网的平台默认开启，可用 GEO_SEARCH_<平台大写>=0 关闭，测「模型记忆」。
+
+没有公开 API 的 App 内置 AI（小红书点点/问一问、抖音@豆包、微信搜一搜、百度 AI 搜索、夸克、
+知乎直答、Copilot、Google AI Overviews 等）请按 references/platforms.md 的手动监测清单抽查。
 """
 from __future__ import annotations
 
@@ -38,51 +44,122 @@ import urllib.error
 import urllib.request
 from datetime import date
 
+def _p(display, base, key, model, group, api="openai", search=None):
+    """search：开启联网时附加到请求体的参数；None 表示该平台 API 不支持联网（只测模型记忆）。"""
+    return {"display": display, "base": base, "key_env": key, "model": model, "group": group,
+            "api": api, "search": search}
+
+
 PROVIDERS = {
-    # name: base_url, key env, default model, mode, extra body
-    "deepseek":   ("https://api.deepseek.com", "DEEPSEEK_API_KEY", "deepseek-chat", "模型记忆", {}),
-    "kimi":       ("https://api.moonshot.cn/v1", "MOONSHOT_API_KEY", "moonshot-v1-8k", "模型记忆", {}),
-    "qwen":       ("https://dashscope.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY", "qwen-plus",
-                   "联网", {"enable_search": True}),
-    "doubao":     ("https://ark.cn-beijing.volces.com/api/v3", "ARK_API_KEY", "", "模型记忆", {}),
-    "perplexity": ("https://api.perplexity.ai", "PERPLEXITY_API_KEY", "sonar", "联网", {}),
-    "openai":     ("https://api.openai.com/v1", "OPENAI_API_KEY", "gpt-4o-mini", "模型记忆", {}),
+    # ---- 国内
+    "deepseek": _p("DeepSeek", "https://api.deepseek.com", "DEEPSEEK_API_KEY", "deepseek-chat", "国内"),
+    "qwen":     _p("通义千问", "https://dashscope.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY",
+                   "qwen-plus", "国内", search={"enable_search": True}),
+    "doubao":   _p("豆包", "https://ark.cn-beijing.volces.com/api/v3", "ARK_API_KEY", "", "国内"),
+    "kimi":     _p("Kimi", "https://api.moonshot.cn/v1", "MOONSHOT_API_KEY", "moonshot-v1-8k", "国内"),
+    "hunyuan":  _p("腾讯混元(元宝)", "https://api.hunyuan.cloud.tencent.com/v1", "HUNYUAN_API_KEY",
+                   "hunyuan-turbos-latest", "国内", search={"enable_enhancement": True}),
+    "zhipu":    _p("智谱清言(GLM)", "https://open.bigmodel.cn/api/paas/v4", "ZHIPU_API_KEY", "glm-4-plus", "国内",
+                   search={"tools": [{"type": "web_search", "web_search": {"enable": True}}]}),
+    "wenxin":   _p("文心(百度)", "https://qianfan.baidubce.com/v2", "QIANFAN_API_KEY", "ernie-4.5-turbo-128k", "国内",
+                   search={"web_search": {"enable": True}}),
+    "minimax":  _p("MiniMax(海螺)", "https://api.minimaxi.com/v1", "MINIMAX_API_KEY", "MiniMax-M1", "国内"),
+    "stepfun":  _p("阶跃星辰(跃问)", "https://api.stepfun.com/v1", "STEPFUN_API_KEY", "step-2-16k", "国内"),
+    "baichuan": _p("百川", "https://api.baichuan-ai.com/v1", "BAICHUAN_API_KEY", "Baichuan4", "国内"),
+    "spark":    _p("讯飞星火", "https://spark-api-open.xf-yun.com/v1", "SPARK_API_KEY", "4.0Ultra", "国内"),
+    # ---- 海外
+    "openai":     _p("ChatGPT(API)", "https://api.openai.com/v1", "OPENAI_API_KEY", "gpt-4o-mini", "海外"),
+    "gemini":     _p("Gemini", "https://generativelanguage.googleapis.com/v1beta", "GEMINI_API_KEY",
+                     "gemini-2.5-flash", "海外", api="gemini", search={"google_search": {}}),
+    "claude":     _p("Claude", "https://api.anthropic.com/v1", "ANTHROPIC_API_KEY", "claude-sonnet-5-5", "海外",
+                     api="anthropic", search={"type": "web_search_20250305", "name": "web_search", "max_uses": 3}),
+    "grok":       _p("Grok", "https://api.x.ai/v1", "XAI_API_KEY", "grok-4", "海外"),
+    "perplexity": _p("Perplexity", "https://api.perplexity.ai", "PERPLEXITY_API_KEY", "sonar", "海外", search={}),
+    "mistral":    _p("Mistral(Le Chat)", "https://api.mistral.ai/v1", "MISTRAL_API_KEY", "mistral-large-latest", "海外"),
 }
-DISPLAY = {"deepseek": "DeepSeek", "kimi": "Kimi", "qwen": "通义千问", "doubao": "豆包",
-           "perplexity": "Perplexity", "openai": "ChatGPT(API)"}
+DISPLAY = {k: v["display"] for k, v in PROVIDERS.items()}
 SYSTEM = "请像回答普通用户一样直接回答问题；如果推荐具体的工具、项目或品牌，请写出名称和链接。"
 URL_RE = re.compile(r"https?://[^\s)\]>\"'，。]+")
 
 
 def provider_conf(name: str) -> dict:
-    base, key_env, model, mode, extra = PROVIDERS[name]
+    p = PROVIDERS[name]
     up = name.upper()
-    model = os.environ.get(f"GEO_MODEL_{up}") or (os.environ.get("ARK_MODEL") if name == "doubao" else "") or model
-    return {"name": name, "base": os.environ.get(f"GEO_BASE_URL_{up}", base).rstrip("/"),
-            "key": os.environ.get(key_env, ""), "key_env": key_env, "model": model, "mode": mode, "extra": extra}
+    model = os.environ.get(f"GEO_MODEL_{up}") or (os.environ.get("ARK_MODEL") if name == "doubao" else "") or p["model"]
+    search_on = p["search"] is not None and os.environ.get(f"GEO_SEARCH_{up}", "1") != "0"
+    return {"name": name, "base": os.environ.get(f"GEO_BASE_URL_{up}", p["base"]).rstrip("/"),
+            "key": os.environ.get(p["key_env"], ""), "key_env": p["key_env"], "model": model, "api": p["api"],
+            "search": p["search"] if search_on else None, "mode": "联网" if search_on else "模型记忆"}
 
 
-def ask(conf: dict, question: str, timeout: int = 90) -> dict:
-    body = {"model": conf["model"], "temperature": 0.3,
-            "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": question}],
-            **conf["extra"]}
-    req = urllib.request.Request(conf["base"] + "/chat/completions", data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json",
-                                          "Authorization": f"Bearer {conf['key']}"})
+def _post(url: str, body: dict, headers: dict, timeout: int) -> dict:
+    req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json", **headers})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8", errors="replace"))
+
+
+def complete(conf: dict, user: str, system: str = "", temperature: float = 0.3,
+             use_search: bool = True, timeout: int = 120) -> tuple:
+    """统一调用各家接口，返回 (回答文本, 引用链接列表)。"""
+    search = conf["search"] if use_search else None
+    if conf["api"] == "anthropic":
+        body = {"model": conf["model"], "max_tokens": 2048, "temperature": temperature,
+                "messages": [{"role": "user", "content": user}]}
+        if system:
+            body["system"] = system
+        if search:
+            body["tools"] = [search]
+        data = _post(conf["base"] + "/messages", body,
+                     {"x-api-key": conf["key"], "anthropic-version": "2023-06-01"}, timeout)
+        texts, cites = [], []
+        for b in data.get("content") or []:
+            if b.get("type") == "text":
+                texts.append(b.get("text", ""))
+                cites += [c.get("url", "") for c in b.get("citations") or [] if isinstance(c, dict)]
+        return "".join(texts), [c for c in cites if c]
+    if conf["api"] == "gemini":
+        body = {"contents": [{"role": "user", "parts": [{"text": user}]}],
+                "generationConfig": {"temperature": temperature}}
+        if system:
+            body["systemInstruction"] = {"parts": [{"text": system}]}
+        if search:
+            body["tools"] = [search]
+        url = f"{conf['base']}/models/{conf['model']}:generateContent"
+        data = _post(url, body, {"x-goog-api-key": conf["key"]}, timeout)
+        cand = (data.get("candidates") or [{}])[0]
+        text = "".join(p.get("text", "") for p in (cand.get("content") or {}).get("parts") or [])
+        cites = []
+        for ch in (cand.get("groundingMetadata") or {}).get("groundingChunks") or []:
+            web = ch.get("web") or {}
+            cites += [web.get("uri", ""), web.get("title", "")]   # uri 可能是跳转链接，title 通常是域名
+        return text, [c for c in cites if c]
+    msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": user}]
+    body = {"model": conf["model"], "temperature": temperature, "messages": msgs, **(search or {})}
+    data = _post(conf["base"] + "/chat/completions", body, {"Authorization": f"Bearer {conf['key']}"}, timeout)
+    msg = (data.get("choices") or [{}])[0].get("message", {})
+    cites = list(data.get("citations") or [])
+    cites += [s.get("url", "") for s in data.get("search_results") or [] if isinstance(s, dict)]
+    for w in data.get("web_search") or []:                       # 智谱
+        if isinstance(w, dict):
+            cites.append(w.get("link", ""))
+    for w in (data.get("search_info") or {}).get("search_results") or []:   # 千问 / 文心
+        if isinstance(w, dict):
+            cites.append(w.get("url", ""))
+    return msg.get("content") or "", [c for c in cites if isinstance(c, str) and c]
+
+
+def ask(conf: dict, question: str, timeout: int = 120) -> dict:
     last = ""
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                data = json.loads(r.read().decode("utf-8", errors="replace"))
-            msg = (data.get("choices") or [{}])[0].get("message", {})
-            cites = list(data.get("citations") or [])
-            cites += [s.get("url", "") for s in data.get("search_results") or [] if isinstance(s, dict)]
-            return {"ok": True, "answer": msg.get("content") or "", "citations": [c for c in cites if c]}
+            answer, cites = complete(conf, question, SYSTEM, 0.3, True, timeout)
+            return {"ok": True, "answer": answer, "citations": cites}
         except urllib.error.HTTPError as e:
             last = f"HTTP {e.code}: {e.read().decode('utf-8', errors='replace')[:200]}"
-            if e.code not in (429, 500, 502, 503, 504):
+            if e.code not in (429, 500, 502, 503, 504, 529):
                 break
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError, KeyError) as e:
             last = str(e)
         time.sleep(2 * (attempt + 1))
     return {"ok": False, "answer": "", "citations": [], "error": last}
@@ -158,16 +235,32 @@ def render_md(run: dict, prev: dict | None) -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="GEO Anything 监测脚本")
-    ap.add_argument("--questions", required=True, help="问题文件")
-    ap.add_argument("--names", required=True, help="对象名称及别称，逗号分隔")
+    ap.add_argument("--list", action="store_true", help="列出全部支持的平台与所需的 Key")
+    ap.add_argument("--questions", help="问题文件")
+    ap.add_argument("--names", help="对象名称及别称，逗号分隔")
     ap.add_argument("--links", default="", help="你的域名或链接片段，逗号分隔")
     ap.add_argument("--keywords", default="", help="一句话定义里的关键词，用于判断描述是否准确")
-    ap.add_argument("--platforms", default="deepseek,qwen,perplexity", help=f"可选：{','.join(PROVIDERS)}")
+    ap.add_argument("--platforms", default="all", help="平台，逗号分隔；all 表示所有已配置 Key 的平台")
     ap.add_argument("--repeat", type=int, default=2, help="每题重复次数，取最低分（默认 2）")
     ap.add_argument("--out-dir", default="geo-monitor", help="输出目录")
     ap.add_argument("--compare", help="上一次结果的 JSON 文件")
     ap.add_argument("--dry-run", action="store_true", help="只打印计划")
     a = ap.parse_args(argv)
+
+    if a.list:
+        print("| 平台 | 代号 | 地区 | 默认模型 | 联网 | 需要的环境变量 | 已配置 |\n|---|---|---|---|---|---|---|")
+        for k, p in PROVIDERS.items():
+            key = p["key_env"] + (" + ARK_MODEL" if k == "doubao" else "")
+            print(f"| {p['display']} | {k} | {p['group']} | {p['model'] or '（需自填）'} | "
+                  f"{'支持' if p['search'] is not None else '—'} | {key} | {'✓' if os.environ.get(p['key_env']) else ''} |")
+        return 0
+    if not a.questions or not a.names:
+        ap.error("需要 --questions 和 --names（或用 --list 查看平台）")
+    if a.platforms.strip().lower() == "all":
+        a.platforms = ",".join(k for k, p in PROVIDERS.items() if os.environ.get(p["key_env"]))
+        if not a.platforms:
+            print("还没有配置任何平台的 API Key，运行 --list 查看需要哪些环境变量。", file=sys.stderr)
+            return 2
 
     qs = load_questions(a.questions)
     names, links, kws = split(a.names), split(a.links), split(a.keywords)

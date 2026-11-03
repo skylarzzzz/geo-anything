@@ -1,10 +1,10 @@
 # GEO Anything · 让 AI 看见你的任何东西
 
-**GEO Anything 是一个给创作者、个人和中小企业用的开源 AI skill，用来让你的网站、账号内容、商品、GitHub 项目或品牌被豆包、DeepSeek、元宝、Kimi、ChatGPT、Perplexity 等 AI 读懂、引用和推荐。**
+**GEO Anything 是一个给创作者、个人和中小企业用的开源 AI skill，用来让你的网站、账号内容、商品、GitHub 项目或品牌被 20+ 个主流 AI（豆包、千问、DeepSeek、元宝、Kimi、ChatGPT、Gemini、Claude、Grok、Perplexity 等）以及小红书问一问/点点、抖音@豆包、微信搜一搜等 App 内置 AI 读懂、引用和推荐。**
 
 **EN:** GEO Anything is an open-source AI skill and zero-dependency toolkit that audits, rewrites, simulates and monitors anything you own — websites, social posts, products, GitHub repos, personal or company brands — so AI answer engines can understand, cite and recommend it. Chinese AI platforms first, global platforms supported.
 
-作者：Yun ｜ 更新：2026-11-04 ｜ 协议：MIT
+作者：Skylarzzzz ｜ 更新：2026-11-04 ｜ 协议：MIT
 
 ## 它能做什么？
 
@@ -24,6 +24,8 @@
 | `/geo 监测` / `/geo 复盘` | 用 API 分平台记录可见度，自动对比变化 |
 | `/geo 报告` | HTML / PDF 图表报告，可白标交付给客户 |
 | `/geo 客户` | 线索管线、自动提案、月度报告（给接 GEO 单的人） |
+| `/geo 小红书` | 让「问一问」和「点点」引用你的笔记：笔记体检、改写、账号优化 |
+| `/geo 平台` | 该覆盖哪些 AI 和 App 内置入口，各用 API 还是手动监测 |
 
 覆盖 8 类场景：网站工具、GitHub 开源、社媒内容、个人品牌、电商出海、本地商家、B2B 制造业、知识课程。
 
@@ -53,11 +55,12 @@ python3 scripts/geo_report.py --audit audit.json --out report.html # 图表报�
 | 脚本 | 作用 | 需要 |
 |---|---|---|
 | `geo_check.py` | 可复现的体检：可引用性、实体与 E-E-A-T、技术可读性、结构化数据、性能；`--min-score` 用于 CI | 无 |
-| `geo_monitor.py` | 用 API 跑问题池：DeepSeek、Kimi、通义千问（联网）、豆包、Perplexity（联网）、OpenAI；分平台记分、对比上次 | 对应平台的 API Key |
+| `geo_monitor.py` | 用 API 跑问题池，覆盖 17 个平台：DeepSeek、千问、豆包、Kimi、混元（元宝）、智谱、文心、MiniMax、阶跃、百川、星火、ChatGPT、Gemini、Claude、Grok、Perplexity、Mistral；其中千问、混元、智谱、文心、Gemini、Claude、Perplexity 支持联网并解析引用来源 | 对应平台的 API Key |
 | `geo_simulate.py` | 模拟生成式引擎（参考 GEO 论文的可见度指标），比较原文与改写稿；`--rewrite` 自动改写且不编造事实 | 一个平台的 API Key |
 | `geo_report.py` | 自包含 HTML 报告（仪表盘、柱状图，支持深色模式），可选 PDF；品牌名、颜色、logo 白标 | PDF 需 `pip install reportlab` |
 | `geo_gsc.py` | 分析搜索平台导出的查询 CSV：问题型查询、高曝光低点击、潜力词，并生成问题池 | 无 |
 | `geo_clients.py` | 客户管线、基于体检结果自动生成三档提案、月度对比报告 | 无 |
+| `geo_xhs.py` | 小红书笔记体检：标题、前 50 字、结构、可信度、图片文字/字幕、话题、新鲜度，并提示引流和绝对化用语风险 | 无 |
 
 **GitHub Action**：在你自己的仓库里加一个工作流，每次改 README 自动体检：
 ```yaml
@@ -73,7 +76,8 @@ python3 scripts/geo_report.py --audit audit.json --out report.html # 图表报�
 
 | | GEO Anything | 常见海外 GEO skill |
 |---|---|---|
-| AI 平台 | 中文 AI 优先（豆包、DeepSeek、元宝、Kimi、千问），兼顾海外 | 主要针对 ChatGPT / Google |
+| AI 平台 | 22 个独立 AI 助手 + 10 个 App 内置 AI 入口，其中 17 个可用 API 自动监测 | 主要针对 ChatGPT / Google |
+| 小红书 | 专门的问一问/点点打法和笔记体检脚本 | 没有 |
 | 能优化的对象 | 网站、社媒内容、商品、仓库、个人、企业、门店 | 主要是网站 |
 | 运行环境 | 手机对话可用；脚本零依赖 | 多数需要命令行 + 安装 Python 依赖 |
 | 监测 | API 自动监测中文平台，分平台记分，区分联网 / 模型记忆 | 多为单次审计，或只接海外 API |
@@ -91,8 +95,8 @@ python3 scripts/geo_report.py --audit audit.json --out report.html # 图表报�
 
 ## 致谢
 
-方法参考了 GEO 论文（Aggarwal et al., *GEO: Generative Engine Optimization*）、AutoGEO，以及 geo-seo-claude、ultimate-seo-geo、SEO-GEO-AEO-Skill、OranGEO 等开源项目。
+方法参考了 GEO 相关论文与若干开源项目，代码均为原创，详见 [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md)。
 
 ## 作者
 
-Yun · [GitHub @skylarzzzz](https://github.com/skylarzzzz)
+Skylarzzzz · [GitHub @skylarzzzz](https://github.com/skylarzzzz)

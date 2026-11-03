@@ -1,6 +1,6 @@
 ---
 name: geo-anything
-description: 通用 GEO（生成式引擎优化）skill：体检、改写、模拟引用、生成文件、API 监测、报告与客户管理，让任何网站、账号内容、商品、GitHub 仓库、个人或企业品牌被豆包、DeepSeek、元宝、Kimi、ChatGPT、Perplexity 等 AI 读懂、引用和推荐。
+description: 通用 GEO（生成式引擎优化）skill：体检、改写、模拟引用、生成文件、API 监测、报告与客户管理，让任何网站、账号内容、商品、GitHub 仓库、个人或企业品牌被 20+ 个主流 AI（豆包、千问、DeepSeek、元宝、Kimi、ChatGPT、Gemini、Claude、Grok、Perplexity 等）和小红书问一问/点点、抖音@豆包、微信搜一搜等 App 内置 AI 读懂、引用和推荐。
 ---
 
 # GEO Anything · 让 AI 看见你的任何东西
@@ -69,6 +69,8 @@ GEO（Generative Engine Optimization，生成式引擎优化）要解决的只�
 | `/geo 模拟` | 本地预演：原文与改写稿谁更容易被 AI 引用 | 引用率、字数份额、位置加权份额 |
 | `/geo 搜索数据` | 分析 Search Console / 百度搜索资源平台导出的查询表 | GEO 内容机会 + 问题池 |
 | `/geo 客户` | 线索管线、自动提案、月度对比（给接单的人） | 客户表、提案、月报 |
+| `/geo 小红书 <笔记>` | 按问一问/点点的选取逻辑体检和改写笔记 | 得分、风险提示、改写稿 |
+| `/geo 平台` | 列出该对象应覆盖的 AI 平台与 App 内置入口 | 平台清单 + 手动监测表 |
 
 推荐顺序：档案 → 问题池 → 体检 → 改写 →（模拟）→ 文件 / 实体 / 布点 → 监测 → 复盘（每 2–4 周一次）。
 
@@ -82,11 +84,12 @@ skill 自带一组**零依赖 Python 脚本**（只用标准库，Python 3.9+）
 | 脚本 | 对应命令 | 作用 | 需要 |
 |---|---|---|---|
 | `geo_check.py <网址/仓库/本地文件或目录>` | 体检、速查、性能 | A/C/D/E 四维打分、快赢清单；`--psi` 获取 Core Web Vitals；`--json` 输出结构化结果；`--min-score` 用于 CI | 无 |
-| `geo_monitor.py` | 监测、复盘 | 用 API 批量跑问题池，按平台记「提及/准确/链接」，`--compare` 对比上次 | 平台 API Key |
+| `geo_monitor.py` | 监测、复盘 | 17 个平台的 API（国内 11 个、海外 6 个，`--list` 查看），按平台记「提及/准确/链接」，`--compare` 对比上次 | 平台 API Key |
 | `geo_simulate.py` | 模拟、改写 | 按 GEO 论文方法模拟生成式引擎，比较版本的引用份额；`--rewrite` 自动按规则改写 | 一个平台的 API Key |
 | `geo_report.py` | 报告 | 体检/监测 JSON → 自包含 HTML 图表报告，`--pdf` 输出 PDF；`--brand --color --logo --white-label` 白标 | PDF 需 reportlab（可选） |
 | `geo_gsc.py <导出的CSV>` | 搜索数据 | 找问题型查询、高曝光低点击、排名 4–20 潜力词，生成问题池 | 无 |
 | `geo_clients.py` | 客户 | add / list / stage / audit / monitor / proposal / compare | 无 |
+| `geo_xhs.py <笔记.txt 或目录>` | 小红书 | 标题、前 50 字、结构、可信度、图片/字幕、话题、新鲜度打分，标出引流和绝对化用语 | 无 |
 
 GitHub Action：仓库根目录的 `action.yml`（`uses: skylarzzzz/geo-anything@v1`），示例工作流见 `examples/workflows/`：push 时自动体检、每周定时监测并把记录提交回仓库。
 
@@ -181,13 +184,18 @@ GitHub Action：仓库根目录的 `action.yml`（`uses: skylarzzzz/geo-anything
 
 ---
 
-## 7. 平台选择
+## 7. 平台选择与 App 内置 AI
 
-详见 references/platforms.md。默认建议：
-- 国内消费、内容、个人品牌：豆包、DeepSeek、腾讯元宝、Kimi，外加通义千问 / 文心。
-- 开发者与开源：DeepSeek、ChatGPT、Perplexity、Kimi。
-- 出海：ChatGPT、Perplexity、Gemini、Google AI Overviews、Claude。
-- B2B 工业：DeepSeek、文心、豆包、Kimi。
+完整清单见 references/platforms.md：22 个独立 AI 助手，以及小红书、抖音、微信、百度、夸克、知乎、淘宝、支付宝、WorkBuddy 等 App 内置入口，并注明每个平台用 API 还是手动监测。默认建议：
+- 国内消费、生活方式、个人品牌：**小红书问一问与点点**、豆包（抖音）、千问，外加元宝（微信）、DeepSeek、百度。
+- 国内知识与内容 IP：豆包、DeepSeek、知乎直答，外加元宝、Kimi、小红书。
+- 开发者与开源：DeepSeek、ChatGPT、Claude，外加 Perplexity、Kimi、Gemini。
+- 出海：ChatGPT、Google AI Overviews、Gemini、Perplexity，外加 Claude、Grok、Copilot、Meta AI。
+- B2B 工业：DeepSeek、文心、豆包、元宝（公众号），外加 Kimi、智谱、办公 Agent。
+
+**小红书**（/geo 小红书）：按 references/xiaohongshu.md 执行。先区分「问一问」（会署名引用笔记，可写回答）和「点点」（多轮对话检索），再按「被检索到 → 被选中摘录 → 账号层面」三层优化；能运行命令时用 `geo_xhs.py` 打分。**不采用**评论区自问自答、IP 隔离、矩阵号、买赞等操纵手段，用户要求时说明风险并给出正当替代做法。
+
+**抖音、微信、百度、知乎、淘宝等内置 AI**：按 references/embedded-ai.md 执行。
 
 各平台算法和来源偏好变化很快，给出具体平台结论前先联网查最新信息。
 
@@ -196,7 +204,7 @@ GitHub Action：仓库根目录的 `action.yml`（`uses: skylarzzzz/geo-anything
 ## 8. 底线（必须遵守）
 
 - 不编造数据、评价、案例、媒体报道或用户反馈。
-- 不批量刷帖、不制造虚假提及、不冒充他人或机构。
+- 不批量刷帖、不制造虚假提及或虚假互动（包括评论区自问自答、矩阵号互动、买赞买评），不冒充他人或机构。
 - 不在页面里藏给 AI 看的隐藏指令或关键词堆砌（「AI 投毒」）。这类做法违反平台规则，被识别后整个来源会被降权。
 - 不承诺排名或「保证被 AI 推荐」，GEO 只能提高概率。
 - 涉及医疗、金融、法律类内容时，提醒用户事实必须可核验。
