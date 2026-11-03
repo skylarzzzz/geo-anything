@@ -1,0 +1,15 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "<名字>",
+  "jobTitle": "<职位>",
+  "description": "<中版自我介绍>",
+  "url": "<个人主页>",
+  "sameAs": [
+    "<GitHub 链接>",
+    "<小红书主页>",
+    "<抖音主页>",
+    "<领英/其他>"
+  ],
+  "knowsAbout": ["<领域 1>", "<领域 2>"]
+}

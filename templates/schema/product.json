@@ -1,0 +1,16 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "<商品名>",
+  "description": "<商品一句话定义 + 关键卖点>",
+  "image": ["<图片链接>"],
+  "brand": { "@type": "Brand", "name": "<品牌/店铺名>" },
+  "material": "<材质>",
+  "offers": {
+    "@type": "Offer",
+    "price": "<价格>",
+    "priceCurrency": "<USD/CNY>",
+    "availability": "https://schema.org/InStock",
+    "url": "<商品链接>"
+  }
+}

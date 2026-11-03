@@ -1,0 +1,15 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "<公司全称>",
+  "alternateName": ["<简称>", "<英文名>"],
+  "url": "<官网>",
+  "logo": "<logo 链接>",
+  "description": "<一句话定义>",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "<城市>",
+    "addressCountry": "CN"
+  },
+  "sameAs": ["<百科词条>", "<公众号/微博>", "<领英>"]
+}

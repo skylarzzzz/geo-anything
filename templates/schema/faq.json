@@ -1,0 +1,16 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "<问题 1>？",
+      "acceptedAnswer": { "@type": "Answer", "text": "<第一句直接回答，2–4 句。>" }
+    },
+    {
+      "@type": "Question",
+      "name": "<问题 2>？",
+      "acceptedAnswer": { "@type": "Answer", "text": "<……>" }
+    }
+  ]
+}

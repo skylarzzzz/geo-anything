@@ -1,0 +1,42 @@
+# 示例：放行 AI 搜索类爬虫，训练类爬虫由你决定
+# 使用前把 <你的域名> 替换掉，并确认托管平台允许修改 robots.txt
+
+# AI 搜索 / 实时抓取（想被 AI 引用建议放行）
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+# 训练类爬虫：允许则改为 Allow: /，不允许保持 Disallow
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: https://<你的域名>/sitemap.xml
